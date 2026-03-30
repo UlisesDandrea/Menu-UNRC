@@ -2,9 +2,8 @@ name: 🍽️ Obtener Menú UNRC
 
 on:
   schedule:
-    # 8:00 AM Argentina (ART = UTC-3) → 11:00 AM UTC
-    - cron: '0 11 * * 1-5'   # Lunes a Viernes
-  workflow_dispatch:          # Permite correrlo manualmente también
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   scrape-menu:
@@ -19,11 +18,11 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: 📦 Instalar dependencias
-        run: |
-          pip install -r requirements.txt
-          playwright install chromium
-          playwright install-deps chromium
+      - name: 📦 Instalar dependencias Python
+        run: pip install -r requirements.txt
+
+      - name: 🌐 Instalar Playwright y Chromium
+        run: playwright install chromium --with-deps
 
       - name: 🤖 Correr el bot
         env:
