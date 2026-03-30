@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Menú UNRC</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:        #0e0f13;
+      --surface:   #16181f;
+      --border:    #2a2d38;
+      --accent:    #f0c040;
+      --accent2:   #e05a2b;
+      --text:      #e8e6df;
+      --muted:     #7a7870;
+      --radius:    16px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 4rem;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Fondo decorativo */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -200px; right: -200px;
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(240,192,64,.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -200px; left: -200px;
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(224,90,43,.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* Header */
+    header {
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: .4rem;
+      margin-bottom: 2.5rem;
+      animation: fadeUp .6s ease both;
+    }
+
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+    }
+
+    .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .5; transform: scale(.8); }
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      letter-spacing: -.02em;
+      line-height: 1;
+    }
+
+    h1 span { color: var(--accent); }
+
+    .subtitle {
+      font-size: .9rem;
+      color: var(--muted);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    /* Tarjeta principal */
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      animation: fadeUp .6s .1s ease both;
+    }
+
+    .card-header {
+      padding: 1.2rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .fecha-badge {
+      font-family: 'Syne', sans-serif;
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(240,192,64,.1);
+      border: 1px solid rgba(240,192,64,.2);
+      padding: .3rem .8rem;
+      border-radius: 999px;
+    }
+
+    .status {
+      font-size: .8rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+
+    .status-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+    }
+
+    /* Contenido del menú */
+    .menu-body {
+      padding: 1.5rem;
+    }
+
+    #menu-content {
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Skeleton loader */
+    .skeleton {
+      background: linear-gradient(90deg, var(--border) 25%, #2f3240 50%, var(--border) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
+    }
+    .sk-line { height: 16px; }
+    .sk-line.long  { width: 90%; }
+    .sk-line.mid   { width: 65%; }
+    .sk-line.short { width: 40%; }
+    .sk-block { height: 80px; width: 100%; margin-top: .5rem; }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Menú real */
+    .menu-seccion {
+      background: rgba(255,255,255,.03);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+    }
+
+    .menu-seccion h3 {
+      font-family: 'Syne', sans-serif;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent2);
+      margin-bottom: .6rem;
+    }
+
+    .menu-seccion p {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .menu-raw {
+      white-space: pre-wrap;
+      font-size: .9rem;
+      line-height: 1.7;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    /* Error state */
+    .error-box {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+    }
+    .error-box .icon { font-size: 2.5rem; margin-bottom: .5rem; }
+    .error-box p { font-size: .9rem; line-height: 1.6; }
+
+    /* Footer */
+    footer {
+      margin-top: 2rem;
+      font-size: .78rem;
+      color: var(--muted);
+      text-align: center;
+      animation: fadeUp .6s .2s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Botón actualizar */
+    .btn-refresh {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      font-family: 'Syne', sans-serif;
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--bg);
+      background: var(--accent);
+      border: none;
+      border-radius: 999px;
+      padding: .45rem 1rem;
+      cursor: pointer;
+      transition: transform .15s, opacity .15s;
+    }
+    .btn-refresh:hover { transform: scale(1.04); opacity: .9; }
+    .btn-refresh:active { transform: scale(.97); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo-row">
+      <div class="dot"></div>
+      <span class="subtitle">Universidad Nacional de Río Cuarto</span>
+    </div>
+    <h1>Menú del <span>día</span></h1>
+  </header>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="fecha-badge" id="fecha-hoy">Cargando...</span>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <span class="status">
+          <span class="status-dot"></span>
+          Actualizado a las 8:00
+        </span>
+        <button class="btn-refresh" onclick="cargarMenu()">↻ Actualizar</button>
+      </div>
+    </div>
+    <div class="menu-body">
+      <div id="menu-content">
+        <!-- Skeleton mientras carga -->
+        <div class="skeleton sk-line long"></div>
+        <div class="skeleton sk-line mid"></div>
+        <div class="skeleton sk-block"></div>
+        <div class="skeleton sk-line short"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Menú obtenido automáticamente desde SisInfo UNRC · Se actualiza de lunes a viernes
+  </footer>
+
+  <script>
+    // ─── Configuración ──────────────────────────────────────────────────────────
+    // Si usás Supabase, reemplazá estos valores:
+    const SUPABASE_URL = "TU_SUPABASE_URL";
+    const SUPABASE_KEY = "TU_SUPABASE_ANON_KEY";
+
+    // ─── Fecha de hoy ───────────────────────────────────────────────────────────
+    function formatearFecha(fecha) {
+      return fecha.toLocaleDateString('es-AR', {
+        weekday: 'long', day: 'numeric', month: 'long'
+      });
+    }
+
+    const hoy = new Date();
+    document.getElementById('fecha-hoy').textContent =
+      hoy.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
+         .replace(/^\w/, c => c.toUpperCase());
+
+    // ─── Cargar menú desde Supabase ─────────────────────────────────────────────
+    async function cargarMenu() {
+      const contenedor = document.getElementById('menu-content');
+
+      // Mostrar skeleton
+      contenedor.innerHTML = `
+        <div class="skeleton sk-line long"></div>
+        <div class="skeleton sk-line mid"></div>
+        <div class="skeleton sk-block"></div>
+        <div class="skeleton sk-line short"></div>
+      `;
+
+      // Si no hay Supabase configurado, mostrar datos de ejemplo
+      if (SUPABASE_URL === "TU_SUPABASE_URL") {
+        setTimeout(() => mostrarMenuEjemplo(), 800);
+        return;
+      }
+
+      try {
+        const fechaHoy = hoy.toISOString().split('T')[0];
+        const resp = await fetch(
+          `${SUPABASE_URL}/rest/v1/menus?fecha=eq.${fechaHoy}&limit=1`,
+          { headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` } }
+        );
+        const data = await resp.json();
+
+        if (data && data.length > 0) {
+          mostrarMenu(data[0]);
+        } else {
+          mostrarSinMenu();
+        }
+      } catch (err) {
+        console.error(err);
+        mostrarError();
+      }
+    }
+
+    function mostrarMenu(datos) {
+      const contenedor = document.getElementById('menu-content');
+      const texto = datos.texto || "(Sin texto disponible)";
+
+      // Mostrar el texto del menú formateado
+      contenedor.innerHTML = `
+        <div class="menu-seccion">
+          <h3>🍽️ Menú de hoy</h3>
+          <pre class="menu-raw">${texto}</pre>
+        </div>
+      `;
+    }
+
+    function mostrarMenuEjemplo() {
+      const contenedor = document.getElementById('menu-content');
+      contenedor.innerHTML = `
+        <div class="menu-seccion">
+          <h3>🥣 Entrada</h3>
+          <p>Ensalada mixta con aderezo de limón</p>
+        </div>
+        <div class="menu-seccion">
+          <h3>🍛 Plato principal</h3>
+          <p>Guiso de lentejas con pan casero</p>
+        </div>
+        <div class="menu-seccion">
+          <h3>🍮 Postre</h3>
+          <p>Flan con dulce de leche</p>
+        </div>
+        <p style="font-size:.78rem;color:var(--muted);margin-top:.5rem">
+          ⚙️ Datos de ejemplo — configurá Supabase para ver el menú real
+        </p>
+      `;
+    }
+
+    function mostrarSinMenu() {
+      document.getElementById('menu-content').innerHTML = `
+        <div class="error-box">
+          <div class="icon">📭</div>
+          <p>No hay menú disponible para hoy.<br>
+          Puede que sea fin de semana o feriado.</p>
+        </div>
+      `;
+    }
+
+    function mostrarError() {
+      document.getElementById('menu-content').innerHTML = `
+        <div class="error-box">
+          <div class="icon">⚠️</div>
+          <p>No se pudo cargar el menú.<br>
+          Intentá de nuevo más tarde.</p>
+        </div>
+      `;
+    }
+
+    // Cargar al iniciar
+    cargarMenu();
+  </script>
+
+</body>
+</html>
