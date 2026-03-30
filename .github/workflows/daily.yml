@@ -21,7 +21,7 @@ jobs:
       - name: 📦 Instalar dependencias Python
         run: pip install -r requirements.txt
 
-     - name: 🌐 Instalar Playwright y Chromium
+   - name: 🌐 Instalar Playwright y Chromium
         run: |
           pip install playwright
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -30,6 +30,7 @@ jobs:
             libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 \
             --no-install-recommends 2>/dev/null || true
           playwright install chromium
+     
       - name: 🤖 Correr el bot
         env:
           UNRC_DNI:      ${{ secrets.UNRC_DNI }}
