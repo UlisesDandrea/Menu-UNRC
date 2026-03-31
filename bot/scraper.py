@@ -13,15 +13,21 @@ SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
 
 async def verificar_reintento(page):
     """
-    Detecta si apareció el error de conexiones y hace clic en 'Volver a intentar'.
+    Detecta si apareció el error de conexiones y repite hasta que desaparezca.
     """
-    boton_reintentar = await page.query_selector("#volver")
-    if boton_reintentar:
-        print("⚠️ Se detectó límite de conexiones. Haciendo clic en 'Volver a intentar'...")
-        await boton_reintentar.click()
-        await page.wait_for_load_state("networkidle")
-        return True
-    return False
+    intentos = 0
+    while True:
+        boton_reintentar = await page.query_selector("#volver")
+        if boton_reintentar:
+            intentos += 1
+            print(f"⚠️ Límite de conexiones (intento {intentos}). Reintentando...")
+            await boton_reintentar.click()
+            await page.wait_for_load_state("networkidle")
+            await asyncio.sleep(3)  # Espera 3 segundos antes de volver a chequear
+        else:
+            if intentos > 0:
+                print(f"✅ Error resuelto después de {intentos} intento(s)")
+            return intentos > 0
 
 async def obtener_menu():
     async with async_playwright() as p:
