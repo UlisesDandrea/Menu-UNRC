@@ -1,15 +1,13 @@
 name: 🍽️ Obtener Menú UNRC
 
 on:
-    # Intenta correr cada 5 minutos SOLO en la ventana de 8:00 a 8:30 AM (Arg)
-    # 11:00, 11:05, 11:10... hasta 11:25 UTC
+  schedule:
+    # Ráfaga de intentos cada 5 min entre las 08:00 y 08:25 AM Arg (11:00-11:25 UTC)
     - cron: '0,5,10,15,20,25 11 * * 1-5'
-    
-    # Un último intento de seguridad a las 8:45 AM (Arg)
+    # Respaldo a las 08:45 AM Arg
     - cron: '45 11 * * 1-5'
-    - cron: '0 14 * * *'
-
-  workflow_dispatch:
+  
+  workflow_dispatch: # Botón manual para probar ahora mismo
 
 jobs:
   scrape-menu:
@@ -23,18 +21,24 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip' # <--- MEJORA 1: Cache de librerías (ahorra ~30 seg)
 
       - name: 📦 Instalar dependencias Python
-        run: pip install -r requirements.txt
-
-      - name: 🌐 Instalar Playwright y Chromium
         run: |
-          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
-            libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
-            libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
-            libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 \
-            --no-install-recommends 2>/dev/null || true
-          playwright install chromium
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🗄️ Cache Playwright Browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+
+      - name: 🌐 Instalar Playwright y Dependencias
+        run: |
+          # MEJORA 2: Instalación oficial ultra rápida
+          npx playwright install-deps chromium
+          npx playwright install chromium
 
       - name: 🤖 Correr el bot
         env:
@@ -54,10 +58,10 @@ jobs:
           server_port: 465
           username: ulisesdogo2004@gmail.com
           password: ${{ secrets.GMAIL_PASSWORD }}
-          subject: "🍽️ Menú UNRC - ${{ github.run_started_at }}"
+          subject: "🍽️ Menú UNRC - Reporte"
           to: ulisesdogo2004@gmail.com
           from: ulisesdogo2004@gmail.com
-          body: "El bot corrió correctamente. Adjunto el screenshot del menú de hoy."
+          body: "El bot corrió. Adjunto el screenshot del menú."
           attachments: bot/menu_*.png
 
       - name: 📸 Guardar screenshot como artefacto
