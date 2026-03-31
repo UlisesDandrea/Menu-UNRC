@@ -2,8 +2,8 @@ name: 🍽️ Obtener Menú UNRC
 
 on:
   schedule:
-    - cron: '0,5,10,15,20,25 11 * * 1-5'
-    - cron: '45 11 * * 1-5'
+    - cron: '0 11 * * 1-5'
+    - cron: '0 14 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -18,16 +18,18 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip' # <--- Veloz: no descarga librerías dos veces
 
       - name: 📦 Instalar dependencias Python
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      # ESTE ES EL PASO QUE TE FALTABA O ESTABA FALLANDO
-      - name: 🌐 Instalar Navegador y Dependencias
+      - name: 🌐 Instalar Playwright y Chromium
         run: |
-          python -m playwright install --with-deps chromium
+          DEBIAN_FRONTEND=noninteractive sudo apt-get install -y \
+            libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 \
+            libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 \
+            --no-install-recommends 2>/dev/null || true
+          playwright install chromium
 
       - name: 🤖 Correr el bot
         env:
@@ -47,10 +49,10 @@ jobs:
           server_port: 465
           username: ulisesdogo2004@gmail.com
           password: ${{ secrets.GMAIL_PASSWORD }}
-          subject: "🍽️ Menú UNRC - Reporte"
+          subject: "🍽️ Menú UNRC - ${{ github.run_started_at }}"
           to: ulisesdogo2004@gmail.com
           from: ulisesdogo2004@gmail.com
-          body: "Proceso terminado. Adjunto evidencia."
+          body: "El bot corrió correctamente. Adjunto el screenshot del menú de hoy."
           attachments: bot/menu_*.png
 
       - name: 📸 Guardar screenshot como artefacto
