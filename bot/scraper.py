@@ -23,7 +23,7 @@ async def obtener_menu():
         print("🔐 Completando login...")
         await page.wait_for_selector("#nrodoc", timeout=15000)
         await page.fill("#nrodoc", DNI)
-        await page.fill("input[name='MenuSis.clave']", PASSWORD)
+        await page.fill("#clave", PASSWORD)
         await page.click("button:has-text('Ingresar'), input[type='submit']")
 
         print("⏳ Esperando redirección...")
