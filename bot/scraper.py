@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+import time
 from datetime import datetime
 from playwright.async_api import async_playwright
 
@@ -71,7 +72,6 @@ async def obtener_menu():
         turno_comprado = None
 
         try:
-            # Buscar todos los radio buttons de turno
             turnos = await page.query_selector_all("input[name='turno']")
 
             if not turnos:
@@ -83,24 +83,18 @@ async def obtener_menu():
                     turno_valor = await turno.get_attribute("value")
                     print(f"🔄 Probando turno {i+1} (valor: {turno_valor})...")
 
-                    # Verificar si el turno tiene cupos disponibles
-                    # El cupo se muestra en el elemento cupo{i+1}
                     cupo_id = f"cupo{i+1}"
                     cupo_elem = await page.query_selector(f"#{cupo_id}")
                     if cupo_elem:
                         cupo_texto = await cupo_elem.inner_text()
-                        if "0 disponibles" in cupo_texto or "color='red'" in cupo_texto:
+                        if "0 disponibles" in cupo_texto:
                             print(f"❌ Turno {i+1} sin cupos, probando siguiente...")
                             continue
 
-                    # Seleccionar este turno (click en el radio button)
                     await turno.click()
                     await asyncio.sleep(1)
-
-                    # Actualizar el campo oculto turnosel via JavaScript
                     await page.evaluate(f"document.compra.turnosel.value='{turno_valor}'")
 
-                    # Buscar y clickear el botón de comprar
                     boton_comprar = await page.query_selector(
                         "input[type='submit'][value*='ompra'], "
                         "input[type='button'][value*='ompra'], "
@@ -108,38 +102,19 @@ async def obtener_menu():
                         "input[type='submit']"
                     )
 
-                    if not boton_comprar:
-                        # Intentar llamar directamente a la función JS
-                        print(f"🔧 Intentando compra via JavaScript para turno {i+1}...")
-                        resultado = await page.evaluate("""
+                    if boton_comprar:
+                        await boton_comprar.click()
+                    else:
+                        await page.evaluate("""
                             () => {
-                                return new Promise((resolve) => {
-                                    // Escuchar cambios en area_mensaje
-                                    const observer = new MutationObserver(() => {
-                                        const msg = document.getElementById('area_mensaje').innerHTML;
-                                        if (msg) resolve(msg);
-                                    });
-                                    observer.observe(
-                                        document.getElementById('area_mensaje'),
-                                        { childList: true, subtree: true }
-                                    );
-                                    // Hacer click en submit
-                                    const btn = document.querySelector('input[type=\"submit\"]');
-                                    if (btn) btn.click();
-                                    // Timeout de seguridad
-                                    setTimeout(() => resolve('timeout'), 10000);
-                                });
+                                const btn = document.querySelector('input[type="submit"]');
+                                if (btn) btn.click();
                             }
                         """)
-                    else:
-                        await boton_comprar.click()
-                        await asyncio.sleep(3)
-                        resultado = await page.inner_text("#area_mensaje")
 
+                    await asyncio.sleep(3)
                     await verificar_reintento(page)
-                    await asyncio.sleep(2)
 
-                    # Verificar resultado
                     area_mensaje = await page.query_selector("#area_mensaje")
                     if area_mensaje:
                         mensaje_texto = await area_mensaje.inner_text()
@@ -158,11 +133,9 @@ async def obtener_menu():
         except Exception as e:
             print(f"⚠️ Error en el proceso de compra: {e}")
 
-        # Screenshot final
         await page.screenshot(path=f"compra_{fecha_hoy}.png", full_page=True)
         print("📸 Screenshot final guardado")
 
-        # ── 5. Guardar datos ──────────────────────────────────────────────────
         datos_menu = {
             "fecha":          fecha_hoy,
             "comprado":       comprado,
@@ -205,4 +178,23 @@ async def guardar_en_supabase(datos):
 
 
 if __name__ == "__main__":
-    asyncio.run(obtener_menu())
+    MAX_INTENTOS = 30
+    ESPERA_ENTRE_INTENTOS = 20  # segundos entre cada intento
+
+    for intento in range(1, MAX_INTENTOS + 1):
+        print(f"\n{'='*40}")
+        print(f"🔄 INTENTO {intento} de {MAX_INTENTOS}")
+        print(f"{'='*40}")
+        try:
+            resultado = asyncio.run(obtener_menu())
+            if resultado.get("comprado"):
+                print(f"\n🎉 ¡Menú comprado exitosamente en el intento {intento}!")
+                break
+            else:
+                print(f"\n⏳ Esperando {ESPERA_ENTRE_INTENTOS}s antes del próximo intento...")
+                time.sleep(ESPERA_ENTRE_INTENTOS)
+        except Exception as e:
+            print(f"❌ Error en intento {intento}: {e}")
+            time.sleep(ESPERA_ENTRE_INTENTOS)
+    else:
+        print(f"\n😔 No se pudo comprar después de {MAX_INTENTOS} intentos.")
