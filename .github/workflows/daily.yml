@@ -5,7 +5,7 @@ on:
     # Ráfaga de intentos cada 5 min entre las 08:00 y 08:25 AM Arg (11:00-11:25 UTC)
     - cron: '0,5,10,15,20,25 11 * * 1-5'
     # Respaldo a las 08:45 AM Arg
-    - cron: '45 11 * * 1-5'
+    - cron: '0 14 * * 1-5'
   
   workflow_dispatch: # Botón manual para probar ahora mismo
 
