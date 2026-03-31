@@ -1,9 +1,13 @@
 name: 🍽️ Obtener Menú UNRC
 
 on:
-  schedule:
-   - cron: '0 11 * * 1-5'
-   - cron: '0 14 * * *'
+    # Intenta correr cada 5 minutos SOLO en la ventana de 8:00 a 8:30 AM (Arg)
+    # 11:00, 11:05, 11:10... hasta 11:25 UTC
+    - cron: '0,5,10,15,20,25 11 * * 1-5'
+    
+    # Un último intento de seguridad a las 8:45 AM (Arg)
+    - cron: '45 11 * * 1-5'
+    - cron: '0 14 * * *'
 
   workflow_dispatch:
 
