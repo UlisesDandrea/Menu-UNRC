@@ -40,6 +40,20 @@ jobs:
           cd bot
           python scraper.py
 
+      - name: 📧 Mandar mail con screenshot
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ulisesdogo2004@gmail.com
+          password: ${{ secrets.GMAIL_PASSWORD }}
+          subject: "🍽️ Menú UNRC - ${{ github.run_started_at }}"
+          to: ulisesdogo2004@gmail.com
+          from: ulisesdogo2004@gmail.com
+          body: "El bot corrió correctamente. Adjunto el screenshot del menú de hoy."
+          attachments: bot/menu_*.png
+
       - name: 📸 Guardar screenshot como artefacto
         uses: actions/upload-artifact@v4
         if: always()
