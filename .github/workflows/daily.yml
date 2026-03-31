@@ -2,12 +2,9 @@ name: 🍽️ Obtener Menú UNRC
 
 on:
   schedule:
-    # Ráfaga de intentos cada 5 min entre las 08:00 y 08:25 AM Arg (11:00-11:25 UTC)
     - cron: '0,5,10,15,20,25 11 * * 1-5'
-    # Respaldo a las 08:45 AM Arg
-    - cron: '0 14 * * 1-5'
-  
-  workflow_dispatch: # Botón manual para probar ahora mismo
+    - cron: '45 11 * * 1-5'
+  workflow_dispatch:
 
 jobs:
   scrape-menu:
@@ -21,24 +18,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip' # <--- MEJORA 1: Cache de librerías (ahorra ~30 seg)
+          cache: 'pip' # <--- Veloz: no descarga librerías dos veces
 
       - name: 📦 Instalar dependencias Python
         run: |
-          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🗄️ Cache Playwright Browsers
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
-
-      - name: 🌐 Instalar Playwright y Dependencias
+      # ESTE ES EL PASO QUE TE FALTABA O ESTABA FALLANDO
+      - name: 🌐 Instalar Navegador y Dependencias
         run: |
-          # MEJORA 2: Instalación oficial ultra rápida
-          npx playwright install-deps chromium
-          npx playwright install chromium
+          python -m playwright install --with-deps chromium
 
       - name: 🤖 Correr el bot
         env:
@@ -61,7 +50,7 @@ jobs:
           subject: "🍽️ Menú UNRC - Reporte"
           to: ulisesdogo2004@gmail.com
           from: ulisesdogo2004@gmail.com
-          body: "El bot corrió. Adjunto el screenshot del menú."
+          body: "Proceso terminado. Adjunto evidencia."
           attachments: bot/menu_*.png
 
       - name: 📸 Guardar screenshot como artefacto
