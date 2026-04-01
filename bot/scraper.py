@@ -28,12 +28,15 @@ async def verificar_reintento(page):
             return intentos > 0
 
 async def obtener_menu():
+    MAX_INTENTOS = 5
+    ESPERA = 15
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page    = await context.new_page()
 
-        # ── 1. Login ─────────────────────────────────────────────────────────
+        # ── 1. Login UNA SOLA VEZ ─────────────────────────────────────────
         print("🌐 Abriendo página...")
         await page.goto(URL_LOGIN, wait_until="networkidle")
         await verificar_reintento(page)
@@ -49,103 +52,113 @@ async def obtener_menu():
             print("✅ Login OK")
         except Exception as e:
             print(f"❌ Error en login: {e}")
+            await browser.close()
+            return {"comprado": False, "turno_comprado": None}
 
-        # ── 2. Ir al comedor ──────────────────────────────────────────────────
-        print("🏫 Navegando al comedor...")
-        await page.goto("https://sisinfo.unrc.edu.ar/gisau/index.php", wait_until="networkidle")
-        await verificar_reintento(page)
-
-        # ── 3. Entrar a Compra menú diario ────────────────────────────────────
-        print("🍽️ Entrando a Compra menú diario...")
-        await page.click("a[href='compra_menu.php'], a[title='Compra de menú diario']")
-        await page.wait_for_load_state("networkidle")
-        await verificar_reintento(page)
-
-        # Screenshot del estado inicial
         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
-        await page.screenshot(path=f"menu_{fecha_hoy}.png", full_page=True)
-        print("📸 Screenshot guardado")
-
-        # ── 4. Intentar comprar por cada turno disponible ─────────────────────
-        print("🛒 Buscando turnos disponibles...")
         comprado = False
         turno_comprado = None
 
-        try:
+        # ── 2. Intentar comprar (5 intentos, misma sesión) ────────────────
+        for intento in range(1, MAX_INTENTOS + 1):
+            print(f"\n{'='*40}")
+            print(f"🔄 INTENTO {intento} de {MAX_INTENTOS}")
+            print(f"{'='*40}")
+
+            # Recargar la página de compra
+            await page.goto("https://sisinfo.unrc.edu.ar/gisau/compra_menu.php", wait_until="networkidle")
+            await verificar_reintento(page)
+
+            # Screenshot del estado actual
+            await page.screenshot(path=f"menu_{fecha_hoy}.png", full_page=True)
+
+            # Buscar turnos
             turnos = await page.query_selector_all("input[name='turno']")
-
             if not turnos:
-                print("⚠️ No se encontraron turnos — puede estar fuera de horario o ya comprado")
-            else:
-                print(f"🕐 Se encontraron {len(turnos)} turno(s)")
+                print("⚠️ Sin turnos disponibles en este intento")
+                if intento < MAX_INTENTOS:
+                    print(f"⏳ Esperando {ESPERA}s...")
+                    await asyncio.sleep(ESPERA)
+                continue
 
-                for i, turno in enumerate(turnos):
-                    turno_valor = await turno.get_attribute("value")
-                    print(f"🔄 Probando turno {i+1} (valor: {turno_valor})...")
+            print(f"🕐 Se encontraron {len(turnos)} turno(s)")
 
-                    cupo_id = f"cupo{i+1}"
-                    cupo_elem = await page.query_selector(f"#{cupo_id}")
-                    if cupo_elem:
-                        cupo_texto = await cupo_elem.inner_text()
-                        if "0 disponibles" in cupo_texto:
-                            print(f"❌ Turno {i+1} sin cupos, probando siguiente...")
-                            continue
+            for i, turno in enumerate(turnos):
+                turno_valor = await turno.get_attribute("value")
+                print(f"🛒 Probando turno {i+1} (valor: {turno_valor})...")
 
-                    await turno.click()
-                    await asyncio.sleep(1)
-                    await page.evaluate(f"document.compra.turnosel.value='{turno_valor}'")
+                # Verificar cupos
+                cupo_elem = await page.query_selector(f"#cupo{i+1}")
+                if cupo_elem:
+                    cupo_texto = await cupo_elem.inner_text()
+                    if "0 disponibles" in cupo_texto:
+                        print(f"❌ Turno {i+1} sin cupos")
+                        continue
 
-                    boton_comprar = await page.query_selector(
-                        "input[type='submit'][value*='ompra'], "
-                        "input[type='button'][value*='ompra'], "
-                        "button:has-text('Comprar'), "
-                        "input[type='submit']"
-                    )
+                # Seleccionar turno y clickear via JavaScript (evita el problema de disabled)
+                await page.evaluate(f"""
+                    () => {{
+                        const radios = document.getElementsByName('turno');
+                        if (radios[{i}]) radios[{i}].checked = true;
+                        document.compra.turnosel.value = '{turno_valor}';
+                    }}
+                """)
+                await asyncio.sleep(1)
 
-                    if boton_comprar:
-                        await boton_comprar.click()
+                # Click en el botón via JavaScript para evitar el error de disabled
+                await page.evaluate("""
+                    () => {
+                        const btn = document.querySelector('input[type="submit"]');
+                        if (btn) btn.removeAttribute('disabled');
+                    }
+                """)
+
+                boton = await page.query_selector("input[type='submit']")
+                if boton:
+                    await boton.click(force=True)
+                else:
+                    await page.evaluate("document.querySelector('input[type=\"submit\"]').click()")
+
+                await asyncio.sleep(4)
+                await verificar_reintento(page)
+
+                area = await page.query_selector("#area_mensaje")
+                if area:
+                    texto = await area.inner_text()
+                    if "EXITOSAMENTE" in texto or "ÉXITO" in texto:
+                        print(f"✅ ¡Compra exitosa en turno {i+1}!")
+                        comprado = True
+                        turno_comprado = turno_valor
+                        break
+                    elif "ya comprado" in texto.lower():
+                        print("ℹ️ El menú ya estaba comprado")
+                        comprado = True
+                        break
                     else:
-                        await page.evaluate("""
-                            () => {
-                                const btn = document.querySelector('input[type="submit"]');
-                                if (btn) btn.click();
-                            }
-                        """)
+                        print(f"⚠️ Turno {i+1}: {texto[:80]}")
 
-                    await asyncio.sleep(3)
-                    await verificar_reintento(page)
+            if comprado:
+                break
 
-                    area_mensaje = await page.query_selector("#area_mensaje")
-                    if area_mensaje:
-                        mensaje_texto = await area_mensaje.inner_text()
-                        if "EXITOSAMENTE" in mensaje_texto or "ÉXITO" in mensaje_texto:
-                            print(f"✅ ¡Compra exitosa en turno {i+1}!")
-                            comprado = True
-                            turno_comprado = turno_valor
-                            break
-                        elif "ya comprado" in mensaje_texto.lower():
-                            print("ℹ️ El menú ya estaba comprado anteriormente")
-                            comprado = True
-                            break
-                        else:
-                            print(f"⚠️ Turno {i+1} falló: {mensaje_texto[:100]}")
+            if intento < MAX_INTENTOS:
+                print(f"⏳ Esperando {ESPERA}s antes del próximo intento...")
+                await asyncio.sleep(ESPERA)
 
-        except Exception as e:
-            print(f"⚠️ Error en el proceso de compra: {e}")
-
-        await page.screenshot(path=f"compra_{fecha_hoy}.png", full_page=True)
+        # Screenshot final
+        await page.screenshot(path=f"menu_{fecha_hoy}.png", full_page=True)
         print("📸 Screenshot final guardado")
 
         datos_menu = {
             "fecha":          fecha_hoy,
-            "comprado":       comprado,
-            "turno_comprado": turno_comprado,
+            "texto":          "compra automatica",
+            "comprado":       str(comprado),
+            "turno_comprado": turno_comprado or "",
             "timestamp":      datetime.now().isoformat()
         }
 
         with open(f"menu_{fecha_hoy}.json", "w", encoding="utf-8") as f:
             json.dump(datos_menu, f, ensure_ascii=False, indent=2)
-        print(f"💾 Guardado: comprado={comprado}, turno={turno_comprado}")
+        print(f"💾 comprado={comprado}, turno={turno_comprado}")
 
         if SUPABASE_URL and SUPABASE_KEY:
             await guardar_en_supabase(datos_menu)
@@ -172,29 +185,10 @@ async def guardar_en_supabase(datos):
             if resp.status_code in (200, 201):
                 print("☁️ Guardado en Supabase")
             else:
-                print(f"⚠️ Error Supabase: {resp.status_code}")
+                print(f"⚠️ Error Supabase: {resp.status_code} - {resp.text}")
     except Exception as e:
         print(f"⚠️ No se pudo guardar: {e}")
 
 
 if __name__ == "__main__":
-    MAX_INTENTOS = 30
-    ESPERA_ENTRE_INTENTOS = 20  # segundos entre cada intento
-
-    for intento in range(1, MAX_INTENTOS + 1):
-        print(f"\n{'='*40}")
-        print(f"🔄 INTENTO {intento} de {MAX_INTENTOS}")
-        print(f"{'='*40}")
-        try:
-            resultado = asyncio.run(obtener_menu())
-            if resultado.get("comprado"):
-                print(f"\n🎉 ¡Menú comprado exitosamente en el intento {intento}!")
-                break
-            else:
-                print(f"\n⏳ Esperando {ESPERA_ENTRE_INTENTOS}s antes del próximo intento...")
-                time.sleep(ESPERA_ENTRE_INTENTOS)
-        except Exception as e:
-            print(f"❌ Error en intento {intento}: {e}")
-            time.sleep(ESPERA_ENTRE_INTENTOS)
-    else:
-        print(f"\n😔 No se pudo comprar después de {MAX_INTENTOS} intentos.")
+    asyncio.run(obtener_menu())
