@@ -2,8 +2,9 @@ name: 🍽️ Obtener Menú UNRC
 
 on:
   schedule:
-    - cron: '0 11 * * 1-5'
-    - cron: '15 11 * * 1-5'
+    - cron: '59 10 * * 1-5'
+    - cron: '5 11 * * 1-5'
+    - cron: '0 15 * * 1-5'
   workflow_dispatch:
 
 jobs:
