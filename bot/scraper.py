@@ -28,7 +28,7 @@ async def verificar_reintento(page):
             return intentos > 0
 
 async def obtener_menu():
-    MAX_INTENTOS = 5
+    MAX_INTENTOS = 15
     ESPERA = 15
 
     async with async_playwright() as p:
