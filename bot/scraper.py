@@ -193,16 +193,3 @@ async def guardar_en_supabase(datos):
 
 
 if __name__ == "__main__":
-    from datetime import datetime
-    import time
-
-    # Esperar hasta las 8:00am
-    ahora = datetime.now()
-    objetivo = ahora.replace(hour=8, minute=0, second=0, microsecond=0)
-    if ahora < objetivo:
-        espera = (objetivo - ahora).total_seconds()
-        print(f"⏰ Son las {ahora.strftime('%H:%M:%S')}. Esperando hasta las 8:00am ({int(espera)} segundos)...")
-        time.sleep(espera)
-    
-    print("🚀 ¡Son las 8:00am! Arrancando el bot...")
-    asyncio.run(obtener_menu())
