@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+import time
 from datetime import datetime
 from playwright.async_api import async_playwright
 
@@ -26,14 +27,10 @@ async def verificar_reintento(page):
             return intentos > 0
 
 async def intentar_compra(page, fecha_hoy):
-    """Recarga la página e intenta comprar turno 1, si falla prueba turno 2."""
     await page.goto("https://sisinfo.unrc.edu.ar/gisau/compra_menu.php", wait_until="networkidle")
     await verificar_reintento(page)
-
-    # Screenshot del estado actual
     await page.screenshot(path=f"menu_{fecha_hoy}.png", full_page=True)
 
-    # Buscar turnos
     turnos = await page.query_selector_all("input[name='turno']")
     if not turnos:
         print("⚠️ Sin turnos disponibles")
@@ -45,7 +42,6 @@ async def intentar_compra(page, fecha_hoy):
         turno_valor = await turno.get_attribute("value")
         print(f"🛒 Probando turno {i+1} (valor: {turno_valor})...")
 
-        # Verificar cupos
         cupo_elem = await page.query_selector(f"#cupo{i+1}")
         if cupo_elem:
             cupo_texto = await cupo_elem.inner_text()
@@ -53,7 +49,6 @@ async def intentar_compra(page, fecha_hoy):
                 print(f"❌ Turno {i+1} sin cupos, probando siguiente...")
                 continue
 
-        # Seleccionar turno via JavaScript
         await page.evaluate(f"""
             () => {{
                 const radios = document.getElementsByName('turno');
@@ -63,7 +58,6 @@ async def intentar_compra(page, fecha_hoy):
         """)
         await asyncio.sleep(1)
 
-        # Click en botón "Comprar menú" por id
         boton = await page.query_selector("#botcompra")
         if not boton:
             boton = await page.query_selector("button.btn-success, button:has-text('Comprar')")
@@ -77,7 +71,6 @@ async def intentar_compra(page, fecha_hoy):
         await asyncio.sleep(4)
         await verificar_reintento(page)
 
-        # Verificar resultado
         area = await page.query_selector("#area_mensaje")
         if area:
             texto = await area.inner_text()
@@ -90,7 +83,6 @@ async def intentar_compra(page, fecha_hoy):
                 return True
             else:
                 print(f"⚠️ Turno {i+1} falló: {texto[:80]}")
-                # Recargar para intentar siguiente turno
                 await page.goto("https://sisinfo.unrc.edu.ar/gisau/compra_menu.php", wait_until="networkidle")
                 await verificar_reintento(page)
                 turnos = await page.query_selector_all("input[name='turno']")
@@ -99,15 +91,16 @@ async def intentar_compra(page, fecha_hoy):
 
 
 async def obtener_menu():
-    MAX_INTENTOS = 5
-    ESPERA = 15
+    ESPERA_ENTRE_INTENTOS = 15  # segundos entre intentos
+    TIEMPO_LIMITE = 30 * 60     # 30 minutos en segundos
+    inicio = time.time()
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page    = await context.new_page()
 
-        # ── 1. Login UNA SOLA VEZ ─────────────────────────────────────────
+        # ── Login UNA SOLA VEZ ────────────────────────────────────────────
         print("🌐 Abriendo página...")
         await page.goto("https://sisinfo.unrc.edu.ar/gisau/compra_menu.php", wait_until="networkidle")
         await verificar_reintento(page)
@@ -128,11 +121,19 @@ async def obtener_menu():
 
         fecha_hoy = datetime.now().strftime("%Y-%m-%d")
         comprado = False
+        intento = 0
 
-        # ── 2. Intentar comprar (5 intentos, misma sesión) ────────────────
-        for intento in range(1, MAX_INTENTOS + 1):
+        # ── Intentar durante 30 minutos ───────────────────────────────────
+        while True:
+            tiempo_transcurrido = time.time() - inicio
+            if tiempo_transcurrido >= TIEMPO_LIMITE:
+                print(f"\n⏰ Se agotaron los 30 minutos. Terminando.")
+                break
+
+            intento += 1
+            minutos_restantes = int((TIEMPO_LIMITE - tiempo_transcurrido) / 60)
             print(f"\n{'='*40}")
-            print(f"🔄 INTENTO {intento} de {MAX_INTENTOS}")
+            print(f"🔄 INTENTO {intento} — {minutos_restantes} min restantes")
             print(f"{'='*40}")
 
             try:
@@ -143,9 +144,10 @@ async def obtener_menu():
             except Exception as e:
                 print(f"❌ Error: {e}")
 
-            if intento < MAX_INTENTOS:
-                print(f"⏳ Esperando {ESPERA}s...")
-                await asyncio.sleep(ESPERA)
+            # Verificar tiempo antes de esperar
+            if time.time() - inicio + ESPERA_ENTRE_INTENTOS < TIEMPO_LIMITE:
+                print(f"⏳ Esperando {ESPERA_ENTRE_INTENTOS}s...")
+                await asyncio.sleep(ESPERA_ENTRE_INTENTOS)
 
         # Screenshot final
         await page.screenshot(path=f"menu_{fecha_hoy}.png", full_page=True)
@@ -193,12 +195,4 @@ async def guardar_en_supabase(datos):
 
 
 if __name__ == "__main__":
-      ahora = datetime.now()
-    objetivo = ahora.replace(hour=8, minute=0, second=0, microsecond=0)
-    if ahora < objetivo:
-        espera = (objetivo - ahora).total_seconds()
-        print(f"⏰ Son las {ahora.strftime('%H:%M:%S')}. Esperando hasta las 8:00am ({int(espera)} segundos)...")
-        time.sleep(espera)
-
-    print("🚀 ¡Son las 8:00am! Arrancando el bot...")
     asyncio.run(obtener_menu())
